@@ -1,1 +1,1 @@
-server=195.133.196.15;port=3306;user=dip;database=testchallenge;password=239871
+Server=127.0.0.1;Port=5552;Username=postgres;Password=1;Database=challenge;

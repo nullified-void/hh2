@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using MySql.Data.MySqlClient;
+using Npgsql;
 
 namespace WebApplication4.Controllers
 {
@@ -13,40 +13,79 @@ namespace WebApplication4.Controllers
 
     public class ValuesController : ControllerBase
     {
-        public static MySqlConnection connection;
 
+        //
         // POST api/values/get
         [HttpPost("get")]
-        public ActionResult<string> Post([FromBody] user newuser)
+        public ActionResult<string> get()
         {
-            string Json = "";
             string connectionstring = System.IO.File.ReadAllLines("settings.pbl")[0];
-            connection = new MySqlConnection(connectionstring);
-            connection.Open();
-            MySqlCommand com1 = new MySqlCommand("", connection);
-            com1.CommandText = "select * from workers";
-            MySqlDataReader r1 = com1.ExecuteReader();
+            NpgsqlConnection npgSqlConnection = new NpgsqlConnection(connectionstring);
+            List<user> newuser = new List<user>();
+            string Json = "";
+            npgSqlConnection.Open();
+            NpgsqlCommand npgSqlCommand = new NpgsqlCommand("select * from workers", npgSqlConnection);
+            NpgsqlDataReader r1 = npgSqlCommand.ExecuteReader();
             while (r1.Read())
             {
-                newuser.id = r1[0].ToString();
-                newuser.FirstName = r1[1].ToString();
-                newuser.SecondName = r1[2].ToString();
-                newuser.LastName = r1[3].ToString();
-                newuser.DateOfB = r1[4].ToString();
-                Json += JsonConvert.SerializeObject(newuser);
+                user olduser = new user();
+                olduser.id = r1[0].ToString();
+                olduser.FirstName = ((string[])r1[1])[0];
+                olduser.SecondName = ((string[])r1[2])[0];
+                olduser.LastName = ((string[])r1[3])[0];
+                olduser.DateOfB = ((DateTime)r1[4]).ToString() ;
+                newuser.Add(olduser);
             }
+            Json = JsonConvert.SerializeObject(newuser);
             r1.Close();
-            connection.Close();
+            npgSqlConnection.Close();
             return Json;
 
         }
-        // POST api/values
+        // POST api/values/add
         [HttpPost("add")]
-        public ActionResult<string> Post2([FromBody] user newuser)
+        public void add()
         {
-            return "";
+            string connectionstring = System.IO.File.ReadAllLines("settings.pbl")[0];
+            NpgsqlConnection npgSqlConnection = new NpgsqlConnection(connectionstring);
+            npgSqlConnection.Open();
+            NpgsqlCommand npgSqlCommand = new NpgsqlCommand("insert into workers(\"FirstName\", \"SecondName\", \"LastName\", \"DateOfB\") values (\'{-}\',\'{-}\',\'{-}\',\'2000-01-01\')", npgSqlConnection);
+            npgSqlCommand.ExecuteNonQuery();
+            npgSqlConnection.Close();
         }
+        // POST api/values/delete
+        [HttpPost("delete")]
+        public void delete([FromBody] user newuser)
+        {
+            string connectionstring = System.IO.File.ReadAllLines("settings.pbl")[0];
+            NpgsqlConnection npgSqlConnection = new NpgsqlConnection(connectionstring);
+            npgSqlConnection.Open();
+            NpgsqlCommand npgSqlCommand = new NpgsqlCommand(String.Format("delete from workers where id = {0}", newuser.id), npgSqlConnection);
+            npgSqlCommand.ExecuteNonQuery();
+            npgSqlConnection.Close();
+        }
+        // POST api/values/edit
+        [HttpPost("edit")]
+        public void edit([FromBody] user newuser)
+        {
 
+            string connectionstring = System.IO.File.ReadAllLines("settings.pbl")[0];
+            NpgsqlConnection npgSqlConnection = new NpgsqlConnection(connectionstring);
+            npgSqlConnection.Open();
+            NpgsqlCommand npgSqlCommand = new NpgsqlCommand(String.Format("update workers set " +
+                "\"FirstName\" = \'{{{0}}}\'," +
+                " \"SecondName\" = \'{{{1}}}\', " +
+                "\"LastName\" = \'{{{2}}}\', " +
+                "\"DateOfB\" = \'{3}\' " +
+                "where \"id\" = {4}", 
+                newuser.FirstName,
+                newuser.SecondName,
+                newuser.LastName,
+                newuser.DateOfB,
+                newuser.id), npgSqlConnection);
+            npgSqlCommand.ExecuteNonQuery();
+            npgSqlConnection.Close();
+        }
     }
     public struct user
     {
